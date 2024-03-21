@@ -99,34 +99,31 @@ exports.deleteBook = (req, res, next) => {
 
 exports.addRatingToBook = (req, res, next) => {
     const bookId = req.params.id;
-    const userId = req.auth.userId;
-    const grade = req.body.rating;
+    const userId = req.body.userId;
+    const ratingToAdd = req.body.rating;
 
     Book.findOne({ _id: bookId })
         .then(book => {
-            // Vérifier si l'utilisateur a déjà noté ce livre
-            if (book.ratings.find(rating => rating.userId.toString() === userId)) {
+            // Vérifie si l'utilisateur a déjà noté ce livre
+            if (book.ratings.find(rating => rating.userId === userId)) {
                 return res.status(400).json({ error: 'Lutilisateur a déjà noté ce livre !' });
             }
 
-            const updatedRatings = [...book.ratings, { userId, grade }];
-            const updatedAverageRating = updatedRatings.reduce((acc, curr) => acc + curr.grade, 0) / updatedRatings.length;
+            // Ajoute la nouvelle note
+            book.ratings.push({ userId, grade: ratingToAdd });
 
-            Book.updateOne({ _id: bookId }, {...req.body,
-                _id: req.params.id,
-                ratings: updatedRatings,
-                averageRating: updatedAverageRating
-            })
-                .then(() => res.status(200).json({
-                    message: 'Note ajoutée avec succès !',
-                    averageRating: updatedAverageRating,
-                    id: req.params.id
-                }))
-                .catch(error => res.status(400).json({ error }));
-            console.log(book)
+            // Calcule la nouvelle moyenne
+            book.averageRating = book.ratings.reduce((acc, curr) => acc + curr.grade, 0) / book.ratings.length;
+
+            // Sauvegarde les changements dans le livre
+            return book.save();
+        })
+        .then(updatedBook => {
+            res.status(200).json(updatedBook);
         })
         .catch(error => res.status(500).json({ error }));
 };
+
 
 exports.getBestRatedBooks = (req, res, next) => {
     Book.find().sort({ averageRating: -1 }).limit(3)
