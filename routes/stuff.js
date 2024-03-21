@@ -6,14 +6,20 @@ const multer = require('../middleware/multer-config');
 
 const stuffCtrl = require('../controllers/stuff');
 
+// Route pour ajouter une note à un livre
+router.post('/:id/rating', auth, stuffCtrl.addRatingToBook);
+
 // Ajout d'un livre
 router.post('/', auth, multer, stuffCtrl.createBook);
 
-// Récupération de tous les Livres
-router.get('/', stuffCtrl.getAllBooks);
+// Récupération des 3 livres avec la meilleure note moyenne
+router.get('/bestrating', stuffCtrl.getBestRatedBooks);
 
 // Récupération d'un Livre Spécifique par ID
 router.get('/:id', stuffCtrl.getOneBook);
+
+// Récupération de tous les Livres
+router.get('/', stuffCtrl.getAllBooks);
 
 // Mise à Jour d'un Livre
 router.put('/:id', auth, multer, stuffCtrl.modifyBook);
