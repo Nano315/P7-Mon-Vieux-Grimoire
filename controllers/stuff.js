@@ -1,18 +1,47 @@
 const Book = require('../models/Book');
 const fs = require('fs');
 
+const sharp = require('sharp');
+const path = require('path');
+
+const uploadDir = 'images'; // Assurez-vous que ce répertoire existe
+
 exports.createBook = (req, res, next) => {
     const bookObject = JSON.parse(req.body.book);
     delete bookObject._id;
     delete bookObject._userId;
-    const book = new Book({
-        ...bookObject,
-        userId: req.auth.userId,
-        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
-    });
-    book.save()
-        .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
-        .catch(error => res.status(400).json({ error }));
+
+    // Logique de compression d'image
+    if (req.file) {
+        const buffer = req.file.buffer;
+        const originalname = req.file.originalname.split(' ').join('_');
+        const extension = 'webp';
+        const fileName = originalname + Date.now() + '.' + extension;
+        
+        // Utilisation de Sharp pour convertir et compresser l'image
+        sharp(buffer)
+            .resize(500)
+            .toFormat('webp')
+            .webp({ quality: 20 })
+            .toBuffer()
+            .then(data => {
+                fs.writeFileSync(path.join(uploadDir, fileName), data);
+
+                // Sauvegarde du livre avec l'image compressée
+                const book = new Book({
+                    ...bookObject,
+                    userId: req.auth.userId,
+                    imageUrl: `${req.protocol}://${req.get('host')}/${uploadDir}/${fileName}`
+                });
+
+                book.save()
+                    .then(() => res.status(201).json({ message: 'Livre enregistré avec image optimisée !' }))
+                    .catch(error => res.status(400).json({ error }));
+            })
+            .catch(error => res.status(500).json({ error }));
+    } else {
+        res.status(400).json({ message: 'Image non fournie' });
+    }
 };
 
 exports.getAllBooks = (req, res, next) => {
